@@ -35,7 +35,7 @@ float ElectricLine::mesure(){
   // 5550  ==> 2000W  ==> I = 9 091 mA  => 1 ==> 1.6 mA
   // 1 mv    ==> 3.7 W    ==> I = 17 mA
   // 1 mv    == 3 300/1024  ==  3
-  const float coefCurrent = 15; // mA((2000/535)/220)*(3300/1024);
+  const float coefCurrent = 9.5;//15; // mA((2000/535)/220)*(3300/1024);
   const float offset = 4;//23; // mesure;
 
 
