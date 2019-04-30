@@ -3,7 +3,7 @@
 
 #include "ElectricLine.h"
 #include "LuxManager.h"
-#include <thingSpeakManager.h>
+
 #include <WifiManagerV2.h>
 #include "SettingManager.h"
 #include <myTimer.h>
@@ -11,6 +11,9 @@
 #include <DHT.h>
 
 #include <DHTManagerV2.h>
+#include <grovestreamsManager.h>
+#include <thingSpeakManager.h>
+
 /*#include "DHTTemperature.h"
 #include "DHTHumidity.h"*/
 
@@ -48,6 +51,7 @@ DHTManagerV2 dht(pinLed,pinDHT);
 
 WifiManager wfManager(pinLed,&smManager);
 thingSpeakManager sfManager(pinLed);
+grovestreamsManager grovesMgt(pinLed);
 
 
 #ifdef MCPOC_TELNET
@@ -83,6 +87,7 @@ String getJson()
     tt += "\"LOG\":["+wfManager.log(JSON_TEXT)  + "," +
                       /*temp.log(JSON_TEXT)  + ","+hum.log(JSON_TEXT)*/ dht.log(JSON_TEXT)  + "," + wfManager.getHourManager()->log(JSON_TEXT) + ","+
                       elecLine1.log(JSON_TEXT) + ","+ elecLine2.log(JSON_TEXT) + ","+ elecLine3.log(JSON_TEXT) + ","  +
+                      grovesMgt.log(JSON_TEXT) + "," +
                       lux.log(JSON_TEXT) + "," +
                       sfManager.log(JSON_TEXT)+"],";
     tt += "\"courant1\":{" + elecLine1.toString(JSON_TEXT) + "},";
@@ -213,7 +218,7 @@ void setup ( void ) {
   //ESP.wdtDisable();
 }
 
-
+String strCur_lgn1,strCur_lgn2,strCur_lgn3, strTEMP_Dres;
 void loop ( void ) {
 	wfManager.handleClient();
   if (mtTimer.isCustomPeriod()) {
@@ -237,17 +242,35 @@ void loop ( void ) {
       lux.getValue();
       dht.getHumiditySensor()->getValue();
       dht.getTemperatureSensor()->getValue();
-      sfManager.addVariable(CURRENT_LINE_1_LABEL, String(elecLine1.getValue()));
-      sfManager.addVariable(CURRENT_LINE_2_LABEL, String(elecLine2.getValue()));
-      sfManager.addVariable(CURRENT_LINE_3_LABEL, String(elecLine3.getValue()));
+      strCur_lgn1=String(elecLine1.getValue());
+      sfManager.addVariable(CURRENT_LINE_1_LABEL, strCur_lgn1);
+      strCur_lgn2= String(elecLine2.getValue());
+      sfManager.addVariable(CURRENT_LINE_2_LABEL, strCur_lgn2);
+      strCur_lgn3= String(elecLine3.getValue());
+      sfManager.addVariable(CURRENT_LINE_3_LABEL, strCur_lgn3);
       sfManager.addVariable(KWH_LINE_1_LABEL, String(elecLine1.getKWattHour()));
       sfManager.addVariable(KWH_LINE_2_LABEL, String(elecLine2.getKWattHour()));
       sfManager.addVariable(LUX_LABEL, String(lux.getValue()));
       sfManager.addVariable(HUM_LABEL, String(dht.getHumiditySensor()->getValue()));
-      sfManager.addVariable(TEMP_LABEL, String(dht.getTemperatureSensor()->getValue()));
+      strTEMP_Dres = String(dht.getTemperatureSensor()->getValue());
+      sfManager.addVariable(TEMP_LABEL, strTEMP_Dres);
       sfManager.sendIoT( smManager.m_privateKey, smManager.m_publicKey);
       DEBUGLOG(getJson());
   }
+
+  if (mtTimer.is1HPeriod()) {
+    if (WiFi.isConnected()) {
+      grovesMgt.addVariable(TEMP_DRESSING , strTEMP_Dres);
+      grovesMgt.sendIoT(TEMP_ID);
+
+      grovesMgt.addVariable(COURANT_LIGNE_1 , strCur_lgn1);
+      grovesMgt.addVariable(COURANT_LIGNE_2 , strCur_lgn2);
+      grovesMgt.addVariable(COURANT_LIGNE_3 , strCur_lgn3);
+      grovesMgt.sendIoT(COURANT_ID);
+    }
+  }
+
+
 
   if (mtTimer.is5MNPeriod()) {
     if (wfManager.getHourManager()->isNextDay()) {
