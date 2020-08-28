@@ -22,11 +22,7 @@ class SettingManager : public BaseSettingManager
   public:
 //    float m_HUM_SEUIL; //float
     SettingManager(unsigned char pinLed);
-  /*  String toString(boolean bJson);
-    unsigned char readData();
-    unsigned char writeData();
-    String getClassName(){return "SettingManager";}
-  private:*/
+
 
 };
 
