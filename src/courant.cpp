@@ -218,7 +218,8 @@ void setup ( void ) {
   //ESP.wdtDisable();
 }
 
-String strCur_lgn1,strCur_lgn2,strCur_lgn3, strTEMP_Dres;
+//String strCur_lgn1,strCur_lgn2,strCur_lgn3, strTEMP_Dres;
+capteurValue  lgn1,lgn2,lgn3,temp;
 void loop ( void ) {
 	wfManager.handleClient();
   if (mtTimer.isCustomPeriod()) {
@@ -236,36 +237,48 @@ void loop ( void ) {
   if (mtTimer.is1MNPeriod()) {
       //DEBUGLOG(ESP_PLATFORM );
       DEBUGLOG("send to IoT");
-      elecLine1.getValue();
+    /*  elecLine1.getValue();
       elecLine2.getValue();
       elecLine3.getValue();
       lux.getValue();
       dht.getHumiditySensor()->getValue();
-      dht.getTemperatureSensor()->getValue();
-      strCur_lgn1=String(elecLine1.getValue());
-      sfManager.addVariable(CURRENT_LINE_1_LABEL, strCur_lgn1);
-      strCur_lgn2= String(elecLine2.getValue());
-      sfManager.addVariable(CURRENT_LINE_2_LABEL, strCur_lgn2);
-      strCur_lgn3= String(elecLine3.getValue());
-      sfManager.addVariable(CURRENT_LINE_3_LABEL, strCur_lgn3);
+      dht.getTemperatureSensor()->getValue();*/
+
+      float fLign = elecLine1.getValue();
+      lgn1.mesure(fLign);
+      sfManager.addVariable(CURRENT_LINE_1_LABEL, String(fLign));
+      fLign = elecLine2.getValue();
+      lgn2.mesure(fLign);
+      sfManager.addVariable(CURRENT_LINE_2_LABEL, String(fLign));
+      fLign = elecLine3.getValue();
+      lgn3.mesure(fLign);
+      sfManager.addVariable(CURRENT_LINE_3_LABEL, String(fLign));
       sfManager.addVariable(KWH_LINE_1_LABEL, String(elecLine1.getKWattHour()));
       sfManager.addVariable(KWH_LINE_2_LABEL, String(elecLine2.getKWattHour()));
       sfManager.addVariable(LUX_LABEL, String(lux.getValue()));
       sfManager.addVariable(HUM_LABEL, String(dht.getHumiditySensor()->getValue()));
-      strTEMP_Dres = String(dht.getTemperatureSensor()->getValue());
-      sfManager.addVariable(TEMP_LABEL, strTEMP_Dres);
+      fLign = dht.getTemperatureSensor()->getValue();
+      temp.mesure(fLign);
+      sfManager.addVariable(TEMP_LABEL, String(fLign));
       sfManager.sendIoT( smManager.m_privateKey, smManager.m_publicKey);
       DEBUGLOG(getJson());
   }
 
+
+
+
   if (mtTimer.is1HPeriod()) {
     if (WiFi.isConnected()) {
-      grovesMgt.addVariable(TEMP_DRESSING , strTEMP_Dres);
+      temp.set();
+      grovesMgt.addVariable(TEMP_DRESSING , String(temp.m_value));
       grovesMgt.sendIoT(TEMP_ID);
 
-      grovesMgt.addVariable(COURANT_LIGNE_1 , strCur_lgn1);
-      grovesMgt.addVariable(COURANT_LIGNE_2 , strCur_lgn2);
-      grovesMgt.addVariable(COURANT_LIGNE_3 , strCur_lgn3);
+      lgn1.set();
+      grovesMgt.addVariable(COURANT_LIGNE_1 , String(lgn1.m_value));
+      lgn2.set();
+      grovesMgt.addVariable(COURANT_LIGNE_2 , String(lgn2.m_value));
+      lgn3.set();
+      grovesMgt.addVariable(COURANT_LIGNE_3 , String(lgn3.m_value));
       grovesMgt.sendIoT(COURANT_ID);
     }
   }
