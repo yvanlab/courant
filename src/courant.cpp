@@ -1,8 +1,11 @@
 
-#include <Arduino.h>
+#include "Arduino.h"
 
 #include "ElectricLineA0.h"
-#include "EauCapteur.h"
+//#include "EauCapteur.h"
+#include "somfy_c1101.h" 
+#include "LigthHelper.h"
+#include "KeysHelper.h" 
 
 #include "SettingManager.h"
 #include <myTimer.h>
@@ -13,6 +16,10 @@
 #include <WifiManagerV2.h>
 #include <grovestreamsManager.h>
 #include <thingSpeakManager.h>
+
+
+using namespace  SomfyC1101;
+
 #define MODULE_NAME CURRENT_GARAGE_NAME
 #define MODULE_MDNS CURRENT_GARAGE_MDNS
 #define MODULE_MDNS_AP CURRENT_GARAGE_MDNS_AP
@@ -33,13 +40,19 @@
 //DHT dht;
 
 uint8_t  pinLed = D4;
-uint8_t  pinDHT = D5;
-uint8_t  pinFlowMeter = D2;
-const unsigned char  pinCurrent = A0;
+uint8_t  pinDHT = D1;
+//uint8_t  pinFlowMeter = D2;
+uint8_t  pinLight = D0; 
+uint8_t  pinSomfy = D2;
+uint8_t  pinCurrent = A0;
+
+KeysHelper   elligibleKey(0);
 
 SettingManager smManager(pinLed);
 ElectricLineA0 elecLine1(pinLed);
 DHTManagerV2 dht(pinLed,pinDHT);
+LigthHelper light(pinLight);
+
 //EauCapteur flowMeter(pinLed, pinFlowMeter);
 
 WifiManager wfManager(pinLed,&smManager);
@@ -72,6 +85,7 @@ String getJson()
     tt += "\"status\":\"" + String(STATUS_PERIPHERIC_WORKING) +"\"," ;
     tt += "\"uptime\":\"" + NTP.getUptimeString() +"\"," ;
     tt += "\"build_date\":\""+ String(__DATE__" " __TIME__)  +"\"},";
+    tt += "\"somfy\":{"+ elligibleKey.toJson()  +"},";
     tt += "\"LOG\":["+wfManager.log(JSON_TEXT)  + "," +
                       dht.log(JSON_TEXT)  + "," + wfManager.getHourManager()->log(JSON_TEXT) + ","+
                       //flowMeter.log(JSON_TEXT) + ","  +
@@ -141,6 +155,32 @@ void dataPage() {
 
 }
 
+void setData()
+{
+
+	DEBUGLOG("SetData");
+  #ifdef MCPOC_TEST
+	for (uint8_t i = 0; i < wfManager.getServer()->args(); i++)
+	{
+		DEBUGLOGF("[%s,%s]\n", wfManager.getServer()->argName(i).c_str(), wfManager.getServer()->arg(i).c_str());
+	}
+	DEBUGLOG("");
+  #endif
+
+	
+	String str;
+
+	// set time
+
+	if ((str = wfManager.getServer()->arg("light_1")) != NULL) {
+    light.startDelay(500);
+     wfManager.getServer()->send(200, "text/html", "ok");
+  } else {
+     wfManager.getServer()->send(404, "text/html", "ko");
+  }
+ 
+
+}
 
 
 
@@ -151,6 +191,7 @@ void startWiFiserver() {
     wfManager.getServer()->onNotFound ( dataPage );
   }
   wfManager.getServer()->on ( "/status", dataJson );
+  wfManager.getServer()->on ( "/setData", setData );
 
   Serial.println(wfManager.toString(STD_TEXT));
 }
@@ -161,6 +202,8 @@ void setup ( void ) {
   // Iniialise input
   Wire.begin();
   Serial.begin ( 115200 );
+  Serial.print("Started");
+
 
   smManager.readData();
   DEBUGLOG("");DEBUGLOG(smManager.toString(STD_TEXT));
@@ -178,15 +221,35 @@ void setup ( void ) {
   #endif
 
   mtTimer.begin(timerFrequence);
-  mtTimer.setCustomMS(3000); //10s
+  mtTimer.setCustomMS(10000); //10s
 
   pinMode ( pinCurrent, INPUT );
+
+  if (LittleFS.begin()) {
+      DEBUGLOG("SPDIFF OK");
+  } else {
+      DEBUGLOG("SPDIFF KO")
+  }
+
+  elligibleKey.begin();
+
+  SPI.begin();
+
+  SomfyC1101::begin(pinSomfy);
 
 }
 
 capteurValue  lgn1,temp,eau;
 void loop ( void ) {
 	wfManager.handleClient();
+  if (SomfyC1101::handle()) {
+    SomfyC1101::RemoteCommand *rc = SomfyC1101::getReceptedCmd();
+    if (elligibleKey.lookForKey(rc) ) {
+      DEBUGLOGF("Active light[%x]\n",rc->address)
+      light.startDelay(500);
+    }
+  }
+  light.handle();
   if (mtTimer.isCustomPeriod()) {
      //DEBUGLOG(ESP_PLATFORM );
       DEBUGLOG("readCapteurs");
@@ -238,6 +301,7 @@ void loop ( void ) {
 
   if (mtTimer.is5MNPeriod()) {
     if (wfManager.getHourManager()->isNextDay()) {
+       ESP.restart();
        // clear max/min
        elecLine1.clear();
        dht.clear();

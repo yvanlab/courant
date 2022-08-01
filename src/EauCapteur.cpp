@@ -29,7 +29,7 @@ float EauCapteur::mesure(){
   m_compteTour = 0;
   m_startCompteTour = millis();
   
-  DEBUGLOGF("flowmeter : Nb tour [%d], duree[%d]\n", duration);
+  //DEBUGLOGF("flowmeter : Nb tour [%f], duree[%d]\n", duration);
   
   //F(Hz)=8.1*Q - 3(+/-10%) Q=L/mi
   float_t litres = compteur/FlowMeterContante; 
